@@ -1,56 +1,115 @@
-document.getElementById('fechaForm').addEventListener('submit', function(e) {
-    e.preventDefault();
+const trabajadores = [];
 
-    // Obtener valores del formulario
-    const nombre = document.getElementById('nombre').value;
-    const fechaInput = document.getElementById('fecha').value;
-    const dias = parseInt(document.getElementById('dias').value);
+// Evento para calcular las vacaciones
+document.getElementById("fechaForm").addEventListener("submit", function (e) {
+  e.preventDefault();
 
-    // Validar formato de fecha DD/MM/YYYY
-    const fechaParts = fechaInput.split('/');
-    if (fechaParts.length !== 3 || fechaParts[2].length !== 4) {
-        alert('Por favor, ingresa una fecha en formato DD/MM/YYYY');
-        return;
-    }
+  const nombre = document.getElementById("nombre").value;
+  const fecha = document.getElementById("fecha").value;
+  const dias = parseInt(document.getElementById("dias").value);
 
-    // Crear objeto Date con la fecha ingresada
-    const fecha = new Date(`${fechaParts[2]}-${fechaParts[1]}-${fechaParts[0]}`);
+  if (nombre === "" || fecha === "" || isNaN(dias)) {
+    alert("Por favor, completa todos los campos.");
+    return;
+  }
 
-    // Sumar días a la fecha
-    fecha.setDate(fecha.getDate() + dias);
+  // Limpiar campos del formulario
+  document.getElementById("nombre").value = "";
+  document.getElementById("fecha").value = "";
+  document.getElementById("dias").value = "";
 
-    // Ajustar al lunes más cercano
-    const dayOfWeek = fecha.getDay();
-    let lunesCercano;
-    
-    if (dayOfWeek === 1) {
-        // Si es lunes, no se hace nada
-        lunesCercano = fecha;
-    } else if (dayOfWeek <= 3) {
-        // Si estamos entre martes y jueves, ajustamos al lunes anterior
-        lunesCercano = new Date(fecha);
-        lunesCercano.setDate(fecha.getDate() - dayOfWeek + 1);
-    } else {
-        // Si estamos entre viernes y domingo, ajustamos al lunes siguiente
-        lunesCercano = new Date(fecha);
-        lunesCercano.setDate(fecha.getDate() + (8 - dayOfWeek));
-    }
+  // Función para formatear fechas en DD/MM/YYYY
+  const formatearFecha = (fecha) => {
+    const dia = String(fecha.getDate()).padStart(2, "0");
+    const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+    const año = fecha.getFullYear();
+    return `${dia}/${mes}/${año}`;
+  };
 
-    // Sumar 7 días al lunes más cercano para calcular el final del periodo
-    const lunesFin = new Date(lunesCercano);
-    lunesFin.setDate(lunesFin.getDate() + 7);
+  // Crear objeto Date
+  const fechaParts = fecha.split("/");
+  const fechaObj = new Date(
+    `${fechaParts[2]}-${fechaParts[1]}-${fechaParts[0]}`
+  );
 
-    // Formatear ambas fechas en DD/MM/YYYY
-    const formatearFecha = (fecha) => {
-        const dia = String(fecha.getDate()).padStart(2, '0');
-        const mes = String(fecha.getMonth() + 1).padStart(2, '0'); // Los meses en JS son 0 indexados
-        const año = fecha.getFullYear();
-        return `${dia}/${mes}/${año}`;
-    };
+  if (isNaN(fechaObj.getTime())) {
+    alert("Fecha inválida. Por favor ingresa una fecha válida.");
+    return;
+  }
 
-    const fechaInicio = formatearFecha(lunesCercano);
-    const fechaFin = formatearFecha(lunesFin);
+  // Sumar los días
+  fechaObj.setDate(fechaObj.getDate() + dias);
 
-    // Mostrar resultado
-    document.getElementById('resultado').innerText = `Hola ${nombre}, tus vacaciones son del ${fechaInicio} hasta el ${fechaFin}`;
+  // Ajustar al lunes más cercano
+  const dayOfWeek = fechaObj.getDay();
+  let lunesCercano = new Date(fechaObj);
+
+  if (dayOfWeek === 0) {
+    // Si es domingo, sumamos 1 día
+    lunesCercano.setDate(fechaObj.getDate() + 1);
+  } else if (dayOfWeek > 1) {
+    // Si es martes (2) a sábado (6), sumamos hasta el siguiente lunes
+    lunesCercano.setDate(fechaObj.getDate() + (8 - dayOfWeek));
+  }
+
+  // Sumar 7 días al lunes más cercano
+  const lunesFin = new Date(lunesCercano);
+  lunesFin.setDate(lunesFin.getDate() + 7);
+
+  // Agregar el trabajador al array
+  trabajadores.push({
+    nombre,
+    inicio: formatearFecha(lunesCercano),
+    final: formatearFecha(lunesFin),
+  });
+
+  // Mostrar todos los resultados en la tabla
+  const resultado = document
+    .getElementById("resultado")
+    .getElementsByTagName("tbody")[0];
+  resultado.innerHTML = ""; // Limpiar resultados anteriores
+
+  // Insertar cada trabajador en la tabla
+  trabajadores.forEach((trabajador) => {
+    const row = resultado.insertRow();
+    row.insertCell(0).innerText = trabajador.nombre;
+    row.insertCell(1).innerText = trabajador.inicio;
+    row.insertCell(2).innerText = trabajador.final;
+  });
+});
+
+// Función para exportar a Excel
+document.getElementById("exportButton").addEventListener("click", function () {
+  // Crear un nuevo libro y hoja
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(
+    trabajadores.map((trabajador) => ({
+      Nombre: trabajador.nombre,
+      Inicio: trabajador.inicio,
+      Final: trabajador.final,
+    }))
+  );
+
+  // Agregar la hoja al libro
+  XLSX.utils.book_append_sheet(wb, ws, "Vacaciones");
+
+  // Guardar el archivo
+  XLSX.writeFile(wb, "vacaciones.xlsx");
+});
+
+// Función para limpiar la tabla y los campos
+document.getElementById("clearButton").addEventListener("click", function () {
+  // Limpiar campos del formulario
+  document.getElementById("nombre").value = "";
+  document.getElementById("fecha").value = "";
+  document.getElementById("dias").value = "";
+
+  // Limpiar la lista de trabajadores
+  trabajadores.length = 0;
+
+  // Limpiar la tabla
+  const resultado = document
+    .getElementById("resultado")
+    .getElementsByTagName("tbody")[0];
+  resultado.innerHTML = ""; // Limpiar resultados anteriores
 });
